@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { Button } from '@nextui-org/button';
-import { AudioResponse } from '@/types';
+import { AudioResponse, Transcriptions } from '@/types';
 
 const SEND_AUDIO_INTERVAL = process.env.NEXT_PUBLIC_SEND_AUDIO_INTERVAL
   ? Number(process.env.NEXT_PUBLIC_SEND_AUDIO_INTERVAL)
@@ -11,10 +11,11 @@ const SEND_AUDIO_INTERVAL = process.env.NEXT_PUBLIC_SEND_AUDIO_INTERVAL
 type Props = {
   onStartRecording: () => void;
   onStopRecording: () => void;
-  onNewTranscript: (transcript: string) => void;
+  onNewTranscript: (transcript: Transcriptions) => void;
+  threadId: string
 };
 
-export default function AudioRecorder({ onNewTranscript, onStartRecording, onStopRecording }: Props) {
+export default function AudioRecorder({ onNewTranscript, onStartRecording, onStopRecording, threadId }: Props) {
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -66,9 +67,10 @@ export default function AudioRecorder({ onNewTranscript, onStartRecording, onSto
     onStopRecording();
   };
 
-  const sendAudioToServer = async (blob: Blob) => {
+  const sendAudioToServer = async (blob: Blob, threadId: string) => {
     const formData = new FormData();
     formData.append('audio', blob, 'audio.webm');
+    formData.append('threadId', threadId);
 
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/upload`, {
@@ -78,7 +80,10 @@ export default function AudioRecorder({ onNewTranscript, onStartRecording, onSto
       const result: AudioResponse = await response.json();
 
       if (result.transcript) {
-        onNewTranscript(result.transcript);
+        onNewTranscript({
+          botAnswer: result.botAnswer,
+          text: result.transcript
+        });
       }
     } catch (error) {
       console.log(error);
@@ -87,7 +92,7 @@ export default function AudioRecorder({ onNewTranscript, onStartRecording, onSto
 
   useEffect(() => {
     if (audioBlob) {
-      sendAudioToServer(audioBlob);
+      sendAudioToServer(audioBlob, threadId);
     }
   }, [audioBlob]);
 

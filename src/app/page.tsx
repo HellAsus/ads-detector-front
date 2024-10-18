@@ -1,29 +1,29 @@
 'use client';
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { TranscriptionList, AudioRecorder } from '@/components';
-import { BotResponse, BotAnswers, ThreadResponse } from '@/types';
+import { BotAnswers, ThreadResponse, Transcriptions } from '@/types';
 
 let botAnswer = '';
 
 export default function Home() {
-  const [transcriptions, setTranscriptions] = useState<string[]>([]);
+  const [transcriptions, setTranscriptions] = useState<Transcriptions[]>([]);
   const [threadId, setThreadId] = useState<string>('');
-  const [questionIndex, setQuestionIndex] = useState(0);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [askLoop, setAskLoop] = useState<number>(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const newTranscriptHandler = useCallback((transcript: string) => {
+  const newTranscriptHandler = useCallback((transcript: Transcriptions) => {
+    if (transcript.botAnswer) {
+      if (botAnswer != BotAnswers.ADS && transcript.botAnswer == BotAnswers.ADS) {
+        toast.error('ADs Started');
+      }
+      botAnswer = transcript.botAnswer;
+    }
     setTranscriptions((prevItems) => [...prevItems, transcript]);
   }, []);
 
   const startRecordingHandler = useCallback(async () => {
     await getThreadId();
     setTranscriptions([]);
-    intervalRef.current = setInterval(async () => {
-      setAskLoop(Date.now());
-    }, 1000);
   }, []);
 
   const stopRecordingHandler = useCallback(async () => {
@@ -46,45 +46,11 @@ export default function Home() {
     }
   };
 
-  const askAssistant = async ({ question, threadId }: { question: string; threadId: string }) => {
-    const formData = new FormData();
-    formData.append('question', question);
-    formData.append('threadId', threadId);
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/askAssistant`, {
-      method: 'POST',
-      body: formData,
-    });
-
-    if (!response.ok) return false;
-
-    const result: BotResponse = await response.json();
-    if (result.botAnswer) {
-      if (botAnswer != BotAnswers.ADS && result.botAnswer == BotAnswers.ADS) {
-        toast.error('ADs Started');
-      }
-      botAnswer = result.botAnswer;
-      return true;
-    }
-    return false;
-  };
-
-  useEffect(() => {
-    (async () => {
-      if (isLoading) return;
-      if (!transcriptions[questionIndex]) return;
-      setIsLoading(true);
-      const result = await askAssistant({ question: transcriptions[questionIndex], threadId });
-      if (result) {
-        setQuestionIndex(questionIndex + 1);
-      }
-      setIsLoading(false);
-    })();
-  }, [askLoop]);
-
   return (
     <div className="flex w-full h-full flex-col items-center pt-20">
       <div className="pb-10">
         <AudioRecorder
+          threadId={threadId}
           onNewTranscript={newTranscriptHandler}
           onStartRecording={startRecordingHandler}
           onStopRecording={stopRecordingHandler}
