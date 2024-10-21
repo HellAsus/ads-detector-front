@@ -2,23 +2,32 @@
 import { useState, useCallback, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { TranscriptionList, AudioRecorder } from '@/components';
-import { BotAnswers, ThreadResponse, Transcriptions } from '@/types';
+import { BotAnswers, ThreadResponse, Transcription } from '@/types';
 
 let botAnswer = '';
 
 export default function Home() {
-  const [transcriptions, setTranscriptions] = useState<Transcriptions[]>([]);
+  const [transcriptions, setTranscriptions] = useState<Transcription[]>([]);
   const [threadId, setThreadId] = useState<string>('');
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const newTranscriptHandler = useCallback((transcript: Transcriptions) => {
+  const newTranscriptHandler = useCallback((transcript: Transcription, index: number) => {
+    let text = '';
     if (transcript.botAnswer) {
       if (botAnswer != BotAnswers.ADS && transcript.botAnswer == BotAnswers.ADS) {
-        toast.error('ADs Started');
+        text = 'Commercial Break Started';
+        toast.error(text);
+      } else if (botAnswer === BotAnswers.ADS && transcript.botAnswer == BotAnswers.BROADCAST) {
+        text = 'Commercial Break Ended';
+        toast.info(text);
       }
       botAnswer = transcript.botAnswer;
     }
-    setTranscriptions((prevItems) => [...prevItems, transcript]);
+    setTranscriptions((prevItems) => [
+      ...prevItems.slice(0, index),
+      { ...transcript, botAnswer: text },
+      ...prevItems.slice(index),
+    ]);
   }, []);
 
   const startRecordingHandler = useCallback(async () => {
@@ -56,9 +65,9 @@ export default function Home() {
           onStopRecording={stopRecordingHandler}
         />
       </div>
-      <div className="flex flex-col min-w-[50%]">
-        <h1 className="pb-4 text-lg">Transcriptions</h1>
-        <div className="border-2 rounded-md p-4">
+      <div className="flex flex-col min-w-[60%]">
+        <h1 className="pb-4 text-lg">Real-time Transcriptions</h1>
+        <div className="">
           <TranscriptionList transcriptions={transcriptions} />
         </div>
       </div>

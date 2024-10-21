@@ -1,2 +1,2 @@
-export { default as TranscriptionList } from "./TranscriptionList";
+export { default as TranscriptionList } from "./TranscriptionTable";
 export { default as AudioRecorder } from "./AudioRecorder";

@@ -2,28 +2,30 @@
 import { useState, useRef, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { Button } from '@nextui-org/button';
-import { AudioResponse, Transcriptions } from '@/types';
+import { AudioResponse, Transcription } from '@/types';
 
 const SEND_AUDIO_INTERVAL = process.env.NEXT_PUBLIC_SEND_AUDIO_INTERVAL
   ? Number(process.env.NEXT_PUBLIC_SEND_AUDIO_INTERVAL)
   : 3000;
 
 type Props = {
-  onStartRecording: () => void;
+  onStartRecording: () => Promise<void>;
   onStopRecording: () => void;
-  onNewTranscript: (transcript: Transcriptions) => void;
-  threadId: string
+  onNewTranscript: (transcript: Transcription, index: number) => void;
+  threadId: string;
 };
 
 export default function AudioRecorder({ onNewTranscript, onStartRecording, onStopRecording, threadId }: Props) {
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [requestIndex, setRequestIndex] = useState<number>(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const startRecording = async () => {
     try {
+      await onStartRecording();
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaRecorderRef.current = new MediaRecorder(stream);
 
@@ -46,13 +48,11 @@ export default function AudioRecorder({ onNewTranscript, onStartRecording, onSto
           mediaRecorderRef.current.start(); //SEND_AUDIO_INTERVAL;
         }
       }, SEND_AUDIO_INTERVAL);
-      onStartRecording();
     } catch (error) {
       if (error instanceof DOMException) {
         toast.error(error.message);
       }
-      console.dir(error)
-     
+      console.dir(error);
     }
   };
 
@@ -64,13 +64,15 @@ export default function AudioRecorder({ onNewTranscript, onStartRecording, onSto
       }
       setIsRecording(false);
     }
+    setRequestIndex(0);
     onStopRecording();
   };
 
-  const sendAudioToServer = async (blob: Blob, threadId: string) => {
+  const sendAudioToServer = async (blob: Blob, threadId: string, requestIndex: number) => {
     const formData = new FormData();
     formData.append('audio', blob, 'audio.webm');
     formData.append('threadId', threadId);
+    formData.append('requestIndex', String(requestIndex));
 
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/upload`, {
@@ -80,10 +82,16 @@ export default function AudioRecorder({ onNewTranscript, onStartRecording, onSto
       const result: AudioResponse = await response.json();
 
       if (result.transcript) {
-        onNewTranscript({
-          botAnswer: result.botAnswer,
-          text: result.transcript
-        });
+        onNewTranscript(
+          {
+            botTime: result.botTime,
+            key: result.requestIndex,
+            transcriptTime: result.transcriptTime,
+            botAnswer: result.botAnswer,
+            text: result.transcript,
+          },
+          Number(result.requestIndex),
+        );
       }
     } catch (error) {
       console.log(error);
@@ -92,7 +100,8 @@ export default function AudioRecorder({ onNewTranscript, onStartRecording, onSto
 
   useEffect(() => {
     if (audioBlob) {
-      sendAudioToServer(audioBlob, threadId);
+      sendAudioToServer(audioBlob, threadId, requestIndex);
+      setRequestIndex(requestIndex + 1);
     }
   }, [audioBlob]);
 

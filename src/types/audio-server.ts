@@ -1,11 +1,17 @@
 export interface AudioResponse {
     transcript: string | null;
     botAnswer: string | null;
+    transcriptTime: number;
+    botTime: number;
+    requestIndex: number
 }
 
-export interface Transcriptions {
+export interface Transcription {
+    key: number;
     text: string
     botAnswer: string | null;
+    transcriptTime: number;
+    botTime: number;
 };
 
 export interface BotResponse {
