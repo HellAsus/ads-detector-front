@@ -30,7 +30,7 @@ export default function TranscriptionTable({ transcriptions }: Props) {
       <TableHeader columns={columns}>
         {(column) => <TableColumn key={column.key}>{column.label}</TableColumn>}
       </TableHeader>
-      <TableBody items={transcriptions} emptyContent={"Please press 'Start Recording' button"} >
+      <TableBody items={transcriptions} emptyContent={"Please click on the “Start Recording” button"} >
         {(item) => (
           <TableRow key={item.key}>{(columnKey) => <TableCell>{getKeyValue(item, columnKey)}</TableCell>}</TableRow>
         )}

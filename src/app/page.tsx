@@ -21,7 +21,9 @@ export default function Home() {
         text = 'Commercial Break Ended';
         toast.info(text);
       }
-      botAnswer = transcript.botAnswer;
+      if (transcript.botAnswer !== BotAnswers.CHECK) {
+        botAnswer = transcript.botAnswer;
+      }
     }
     setTranscriptions((prevItems) => [
       ...prevItems.slice(0, index),
